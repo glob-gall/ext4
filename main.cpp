@@ -18,6 +18,7 @@ using namespace std;
 int block_size=0;
 int inode_size=0;
 int itable_initial_addr;
+fstream file;
 
 
 bool getBit(unsigned short value, int position) // position in range 0-15 for 16 bits
@@ -86,23 +87,7 @@ void print_block_desc(ext4_group_desc* GDT){
   // printf("\nINODE table at %d:\n", GDT.bg_inode_table_lo);
 }
 
-void print_inode(ext4_inode* inode){
-  printf("block count: %d\n", inode->i_blocks_lo);
-  printf("i links count: %d \n", inode->i_links_count);
-  printf("flags: %X \n", inode->i_flags);
-  printf("file mode: %X \n", inode->i_mode);
 
-   unsigned short b = inode->i_mode;
-
-    // Print the bits from position 15 to 0
-    for (int i = 15; i >= 0; --i) {
-        std::cout << getBit(b, i);
-        if (i % 4 == 0) {
-            std::cout << ' '; // Add space every 4 bits for better readability
-        }
-    }
-    printf("\n");
-}
 
 void print_ext_header(ext4_extent_header* ext_header){
   printf("ext header\n");
@@ -125,7 +110,44 @@ void print_ext_idx(ext4_extent_idx* _idx){
   printf("ei_unused: %d\n",_idx->ei_unused);
 }
 
-void print_dir(fstream* file, int block){
+void print_inode(ext4_inode* inode){
+  ext4_extent_header ext_header;
+  ext4_extent ext[3];
+
+  memcpy(&ext_header, inode->i_block, sizeof(ext4_extent_header));
+  
+  memcpy(&ext, &inode->i_block[3], sizeof(ext4_extent)*3);
+  //is eh_depth == 0 ? ext4_extent : ext4_extent_idx  
+  // ext4_extent ext = *(ext4_extent) &inode.i_block;
+
+
+  printf("====================[INODE %d]====================\n",inode->i_uid);
+  printf("block count: %d\n", inode->i_blocks_lo);
+  printf("i links count: %d \n", inode->i_links_count);
+  printf("flags: %X \n", inode->i_flags);
+  printf("file mode: %X \n", inode->i_mode);
+  printf("===extend header===\n");
+  print_ext_header(&ext_header);
+  printf("======extends======\n");
+  print_ext(&ext[0]);
+  print_ext(&ext[1]);
+  print_ext(&ext[2]);
+
+  printf("==================================================\n");
+
+   unsigned short b = inode->i_mode;
+
+    // Print the bits from position 15 to 0
+    for (int i = 15; i >= 0; --i) {
+        std::cout << getBit(b, i);
+        if (i % 4 == 0) {
+            std::cout << ' '; // Add space every 4 bits for better readability
+        }
+    }
+    printf("\n");
+}
+
+void print_dir(int block){
   int block_position = block * block_size;
   
   int block_last = block_position + block_size - 12;
@@ -135,8 +157,8 @@ void print_dir(fstream* file, int block){
   ext4_dir_entry_2 dir;
 
   while (FILE_POS < block_last) {
-    file->seekg(FILE_POS);
-    file->read((char*)(&dir),  sizeof(ext4_dir_entry_2) );
+    file.seekg(FILE_POS);
+    file.read((char*)(&dir),  sizeof(ext4_dir_entry_2) );
     printf("(%d)[%d] %s\n",dir.inode, dir.file_type, dir.name);
     // printf("f-pos: %d\n", FILE_POS);
     // printf("reclen: %d\n", dir.rec_len);
@@ -146,7 +168,7 @@ void print_dir(fstream* file, int block){
   }
 }
 
-int find_by_name(fstream* file, int block, char* name){
+int find_by_name( int block, char* name){
   int inode_addr= -1;
   int block_position = block * block_size;
   // print_dir(file, block);
@@ -160,10 +182,12 @@ int find_by_name(fstream* file, int block, char* name){
   ext4_dir_entry_2 dir;
 
   while (FILE_POS < block_last) {
-    file->seekg(FILE_POS);
-    file->read((char*)(&dir),  sizeof(ext4_dir_entry_2) );
+    file.seekg(FILE_POS);
+    file.read((char*)(&dir),  sizeof(ext4_dir_entry_2) );
 
-    if (strcmp(dir.name, name) == 0){
+    // printf("[%ld]:%s   [%d]:%s\n",strlen(name), name, dir.name_len, dir.name);
+
+    if (strncmp(name, dir.name, strlen(name)) == 0){
       inode_addr = dir.inode;
       break;
     }
@@ -174,64 +198,57 @@ int find_by_name(fstream* file, int block, char* name){
   return inode_addr;
 }
 
-void change_dir(fstream* file, int itable_addr, char* inode_name, ext4_inode* cur_dir){
-  ext4_extent_header cur_header;
-  memcpy(&cur_header, cur_dir->i_block, sizeof(ext4_extent_header));
-  
-  ext4_extent cur_ext;
-  memcpy(&cur_ext, &cur_dir->i_block[3], sizeof(ext4_extent));
+void change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cur_header ,ext4_extent* cur_ext){
 
-  int inode_addr = find_by_name(file, cur_ext.ee_start_lo, inode_name);  
+  int inode_addr = find_by_name(cur_ext->ee_start_lo, inode_name);  
   if (inode_addr == -1){
     printf("DIRETÓRIO NÃO ENCONTRADO!\n");
     return;
   }
   
 
-  int FILE_POS = itable_addr + (inode_addr * inode_size) - inode_size;
-  ext4_inode dir;
-  file->seekg(FILE_POS);
-  file->read((char*)(&dir),  sizeof(ext4_inode) );
-  // print_inode(&inode);
-
-  ext4_extent_header dir_header;
-  memcpy(&dir_header, dir.i_block, sizeof(ext4_extent_header));
+  int FILE_POS = itable_initial_addr + (inode_addr * inode_size) - inode_size;
   
-  ext4_extent ext_dir;
-  memcpy(&ext_dir, &dir.i_block[3], sizeof(ext4_extent));
-  FILE_POS = ext_dir.ee_start_lo * block_size;
+  file.seekg(FILE_POS);
+  file.read((char*)(cur_inode),  sizeof(ext4_inode) );
+  // print_inode(cur_inode);
 
-  print_dir(file, FILE_POS);
+  memcpy(cur_header, cur_inode->i_block, sizeof(ext4_extent_header));
+  
+  // ext4_extent* ext_dir ;
+  memcpy(cur_ext, &cur_inode->i_block[3], sizeof(ext4_extent)*3);
+  
+  // print_dir(cur_ext->ee_start_lo);
 }
 
 void cat_file(fstream* file, ext4_inode* inode){
 
-  print_inode(inode);
+  // print_inode(inode);
   ext4_extent_header ext_header;
   memcpy(&ext_header, inode->i_block, sizeof(ext4_extent_header));
   ext4_extent cur_ext;
-  memcpy(&cur_ext, &inode->i_block[3], sizeof(ext4_extent));
+  memcpy(&cur_ext, &inode->i_block[3], sizeof(ext4_extent)*3);
 
   ext4_extent_header f_header;
   memcpy(&f_header, inode->i_block, sizeof(ext4_extent_header));
-  print_ext_header(&f_header);
+  // print_ext_header(&f_header);
   
   ext4_extent f_ext;
-  memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent));
-  print_ext(&f_ext);
+  memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent)*3);
+  // print_ext(&f_ext);
   
   catblock(file, f_ext.ee_start_lo * block_size);
 }
 
-void init_ext4(fstream* file, ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_header* ext_header,  ext4_extent* ext){
+void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_header* ext_header,  ext4_extent* ext){
   int FILE_POS;
   //abrir o .img
-  file->open("myext4image4k.img", fstream::in | fstream::binary);
+  file.open("myext4image4k.img", fstream::in | fstream::binary);
   FILE_POS= 1024;
 
-  file->seekg(FILE_POS);
+  file.seekg(FILE_POS);
   //SUPERBLOCK
-  file->read((char*)(super_block),  sizeof(ext4_super_block) );//1024
+  file.read((char*)(super_block),  sizeof(ext4_super_block) );//1024
   // print_super_block(&super_block);
 
   // Block count / Blocks per group
@@ -247,9 +264,9 @@ void init_ext4(fstream* file, ext4_super_block* super_block, ext4_inode* root_di
   
   //ext4_group_desc
   FILE_POS=block_size;
-  file->seekg(FILE_POS);
+  file.seekg(FILE_POS);
   ext4_group_desc GDT;
-  file->read((char*)(&GDT),  sizeof(ext4_group_desc) );
+  file.read((char*)(&GDT),  sizeof(ext4_group_desc) );
   // print_block_desc(&GDT);  
 
   itable_initial_addr=GDT.bg_inode_table_lo * block_size;
@@ -259,14 +276,14 @@ void init_ext4(fstream* file, ext4_super_block* super_block, ext4_inode* root_di
   FILE_POS = itable_initial_addr + inode_size;
   // printf("inode 2 = %d\n", FILE_POS);
 
-  file->seekg(FILE_POS);
-  file->read((char*)(root_dir),  sizeof(ext4_inode) );
+  file.seekg(FILE_POS);
+  file.read((char*)(root_dir),  sizeof(ext4_inode) );
   // print_inode(&ROOT);
 
   memcpy(ext_header, root_dir->i_block, sizeof(ext4_extent_header));
   // print_ext_header(&ext_header);
   
-  memcpy(ext, &root_dir->i_block[3], sizeof(ext4_extent));
+  memcpy(ext, &root_dir->i_block[3], sizeof(ext4_extent)*3);
   //is eh_depth == 0 ? ext4_extent : ext4_extent_idx  
   // ext4_extent ext = *(ext4_extent) &inode.i_block;
   // print_ext(&ext);
@@ -276,29 +293,40 @@ void init_ext4(fstream* file, ext4_super_block* super_block, ext4_inode* root_di
 int main () {
   int FILE_POS=0;
 
-  fstream file;
   ext4_super_block super_block;
   ext4_inode root_dir;
   ext4_extent_header root_header;
-  ext4_extent root_extend;
   
   ext4_inode current_dir;
   ext4_extent_header current_header;
-  ext4_extent current_extend;
+  ext4_extent current_extend[3];
   
   //0 = ext, 1 = ext_idx
   // int is_extended = 0;
   // ext4_extent_idx root_extend_idx;
 
-  init_ext4(&file, &super_block, &root_dir, &root_header, &root_extend);
+  ext4_extent root_extend[3];
+  init_ext4( &super_block, &root_dir, &root_header, root_extend );
   current_dir = root_dir;
   current_header = root_header;
-  current_extend= root_extend;
+  current_extend[0]= root_extend[0];
+  current_extend[1]= root_extend[1];
+  current_extend[2]= root_extend[2];
+  
   // print_super_block(&super_block);
   char* cmd[MAX_INPUT_SIZE];
-  int cmd_size=0;
   char input[MAX_INPUT_SIZE];
+  int cmd_size;
+
+
   while (1){
+
+    // print_inode(&current_dir);
+    // print_ext_header(&current_header);
+    // print_ext(&current_extend);
+
+    printf(">>>");
+    cmd_size=0;
     fgets(input, sizeof(input), stdin);
     input[strlen(input)-1]='\0';
     if (strcmp(input, "exit") == 0) break;
@@ -313,39 +341,48 @@ int main () {
       token = strtok(NULL, " ");
       cmd_size++;
     }
-    for (int i = 0; i < cmd_size; i++)
-      printf("%s, ",cmd[i]);
-    printf("\n");
+    // for (int i = 0; i < cmd_size; i++)
+    //   printf("%s, ",cmd[i]);
+    // printf("\n");
+    // printf("cmd[0]: %s\n",cmd[0]);
     
-    printf("cmd[0]: %s\n",cmd[0]);
     
-    if (strcmp(cmd[0],"ls") == 0){
-      print_dir(&file ,current_extend.ee_start_lo);
+    if (strcmp(cmd[0],"clear") == 0){
+      printf("\e[1;1H\e[2J");
+    
+    }else if (strcmp(cmd[0],"ls") == 0){
+      print_dir(current_extend[0].ee_start_lo);
+    
+    }else if (strcmp(cmd[0],"cd") == 0){
+      char* dir_name = cmd[1];
+      change_dir( dir_name, &current_dir, &current_header, current_extend);  
+    
+    }else if(strcmp(cmd[0],"cat") == 0){
+      char* file_name = cmd[1];
+      printf("procurando arquivo %s\n",file_name);
+      int file_addrs = find_by_name( current_extend[0].ee_start_lo, file_name);
+
+      printf("file_addrs: %d\n\n", file_addrs);
+      if (file_addrs != -1){
+        // printf("hello.txt found, [%d]inode\n",file_addrs);
+        FILE_POS = itable_initial_addr + (file_addrs * inode_size) - inode_size;
+        
+        file.seekg(FILE_POS);
+        ext4_inode f;
+        file.read((char*)(&f),  sizeof(ext4_inode) );
+        cat_file(&file,&f);
+      }
+      
     }
-    
   }
   
 
   // FILE_POS = root_extend.ee_start_lo * block_size;
   // file.seekg(FILE_POS);
 
-  // char* hello = "hello.txt";
-  // int hello_i_addr = find_by_name(&file, root_extend.ee_start_lo, hello);
-  // printf("hello_i_addr: %d\n", hello_i_addr);
-  // if (hello_i_addr != -1){
-  //   // printf("hello.txt found, [%d]inode\n",hello_i_addr);
-  //   FILE_POS = itable_initial_addr + (hello_i_addr * inode_size) - inode_size;
-    
-  //   file.seekg(FILE_POS);
-  //   ext4_inode f;
-  //   file.read((char*)(&f),  sizeof(ext4_inode) );
-  //   cat_file(&file,&f);
-  // }
 
 
 
-  // char* dir_name = "documentos";
-  // change_dir(&file, itable_initial_addr, dir_name  , &current_dir);  
 
   file.close();
   return 0;
