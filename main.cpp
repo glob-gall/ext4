@@ -20,6 +20,8 @@ int inode_size=0;
 int itable_initial_addr;
 int inode_bitmap_addr;
 int block_bitmap_addr;
+int total_inodes;
+int total_blocks;
 fstream file;
 
 
@@ -62,12 +64,38 @@ void print_super_block(ext4_super_block* super_block){
   printf("tamanho do super_block: %ld\n",sizeof(super_block));
   printf("volume name: %s\n",super_block->s_volume_name);
   printf("last mount: %s\n",super_block->s_last_mounted);
-  printf("blocks count: %d\n",super_block->s_blocks_count_lo);
   printf("blocks size: %d\n",super_block->s_log_block_size); //ESPERADO 4096 - RECEBIDO: 2
-  printf("inodes count: %d\n",super_block->s_inodes_count);
+  printf("blocks count: %d\n",super_block->s_blocks_count_lo);
+  printf("free blocks: %d\n",super_block->s_free_blocks_count_lo);
   printf("first data block: %d\n",super_block->s_first_data_block);
   printf("inodes per group: %d\n",super_block->s_inodes_per_group);
+  printf("inodes count: %d\n",super_block->s_inodes_count);
+  printf("free inodes: %d\n",super_block->s_free_inodes_count);
   printf("first inode: %d\n",super_block->s_first_ino);
+  
+  switch (super_block->s_creator_os){
+  case 0:
+    printf("SO: Linux\n");
+    break;
+  case 1:
+    printf("SO: Hurd\n");
+    break;
+  case 2:
+    printf("SO: Masix\n");
+    break;
+  case 3:
+    printf("SO: FreeBSD\n");
+    break;
+  case 4:
+    printf("SO: Lites\n");
+    break;
+  
+  default:
+    break;
+  }
+
+  printf("magic number: %d\n",super_block->s_magic);
+  
   printf("\n");
 }
 
@@ -269,6 +297,9 @@ void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_
 
   inode_size = super_block->s_inode_size;
 
+  total_inodes = super_block->s_inodes_count;
+  total_blocks = super_block->s_blocks_count_lo;
+
   //número de block groups
   // int N_GDT = super_block.s_blocks_count_lo / super_block.s_blocks_per_group;
   
@@ -321,6 +352,11 @@ void change_pathname(char** current_path, int* path_size,char *dir_name){
 }
 
 void test_inode(int inode){ //ARRUMAR
+  if (inode > total_inodes){
+    printf("inode <%d> nao existe a acontagem de inodes vai ate %d\n",inode, total_inodes);
+    return; 
+  }
+
   //BLOCK BITMAP
   // FILE_POS= GDT.bg_block_bitmap_lo * block_(*path_size);
   // myfile.seekg(FILE_POS);
@@ -455,11 +491,17 @@ int main () {
       
     }else if (strcmp(cmd[0],"testi") == 0){
       test_inode(atoi(cmd[1]));
+    
     }else if(strcmp(cmd[0],"pwd") == 0){
       // printf("current path: ");
       print_path(current_path,path_size);
       printf("\n");
+    
+    }else if (strcmp(cmd[0],"info") == 0){
+      
+      print_super_block(&super_block);
     }
+    
     
   }
   
