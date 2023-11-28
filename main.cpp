@@ -23,21 +23,27 @@ int block_bitmap_addr;
 fstream file;
 
 
-bool getBit(unsigned short value, int position) // position in range 0-15 for 16 bits
-{
-    return (value >> position) & 0x1;
+// bool getBit(unsigned short value, int position){
+//     return (value >> position) & 0x1;
+// }
+bool getBit(char value[], int position){
+    int index = position/8;
+    int offset = position % 8;
+
+    unsigned char byte = value[index];
+    return (byte >> offset) & 0x1;
 }
 
 void printHex(unsigned char byte){
     printf("%02X ", byte);
 }
 
-void hexDump(fstream* file, int pos, int size){
-  file->seekg(pos);
+void hexDump( int pos, int size){
+  file.seekg(pos);
   // unsigned int dump[size];
   for (int i = 0; i < size; i++) {
     char byte;
-    file->read((char*)(&byte), 1 );
+    file.read((char*)(&byte), 1 );
     // printf("%c ", byte);
     printHex(byte);
   }
@@ -138,15 +144,15 @@ void print_inode(ext4_inode* inode){
 
   printf("==================================================\n");
 
-   unsigned short b = inode->i_mode;
+  //  unsigned short b = inode->i_mode;
 
-    // Print the bits from position 15 to 0
-    for (int i = 15; i >= 0; --i) {
-        std::cout << getBit(b, i);
-        if (i % 4 == 0) {
-            std::cout << ' '; // Add space every 4 bits for better readability
-        }
-    }
+  //   // Print the bits from position 15 to 0
+  //   for (int i = 15; i >= 0; --i) {
+  //       std::cout << getBit(b, i);
+  //       if (i % 4 == 0) {
+  //           std::cout << ' '; // Add space every 4 bits for better readability
+  //       }
+  //   }
     printf("\n");
 }
 
@@ -297,34 +303,57 @@ void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_
 }
 
 
-// void change_pathname(char* current_path, char *dir_name){
-//   if (dir_name == ".")
-//     return;
+void change_pathname(char** current_path, int* path_size,char *dir_name){
+  if (strcmp(dir_name,".") == 0)
+    return;
+  if ((strcmp(dir_name,"..") == 0)){
+    if ( (*path_size) > 1 ){
+      free(current_path[*path_size - 1]);
+      (*path_size)--;
+    }
+    
+    return;
+  }
 
-//   if (dir_name == ".."){
-//     int path_len=strlen(current_path);
-//     int i=path_len;
-//     for (int i = path_len; i > 0; i--)
-//       if (current_path[i] != '/') break;
-//     current_path[i] = '\0';
-//     return;
-//   }
+  current_path[*path_size] = strdup(dir_name);
+  (*path_size)++;
   
-//   strcat(current_path, dir_name);
-//   strcat(current_path, "/");
-// }
-int test_inode(int inode){
+}
+
+void test_inode(int inode){ //ARRUMAR
   //BLOCK BITMAP
-  // FILE_POS= GDT.bg_block_bitmap_lo * block_size;
+  // FILE_POS= GDT.bg_block_bitmap_lo * block_(*path_size);
   // myfile.seekg(FILE_POS);
   // printf("FILE_POS %d :%s\n", 282624, block_bitmap);
   // printFromFile(&myfile, FILE_POS, block_size);
 
   //INODE BITMAP
   file.seekg(inode_bitmap_addr);
-  // printf("\nInode BITMAP:%d\n",inode_bitmap_addr);
-  printf("\nInode<%d>\n",inode);
-  catblock(inode_bitmap_addr);
+  char block[block_size];
+  file.read(block, block_size );
+  bool result = getBit(block, inode);
+    
+  // printf("\nInode<%d>\n",inode);
+  // printf("inode bitmap addr:%d\n",inode_bitmap_addr);
+  // catblock(inode_bitmap_addr);
+  // hexDump(inode_bitmap_addr, block_size);
+  
+  if (!result){
+    printf("Inode disponivel\n");
+    return;
+  }
+    printf("Inode nao disponivel\n");
+
+  
+  
+
+}
+
+void print_path(char** path,int path_size){
+
+  for (int i = 0; i < path_size; i++){
+    printf("%s/", path[i]);
+  }
 }
 
 int main () {
@@ -356,15 +385,21 @@ int main () {
   char* cmd[MAX_INPUT_SIZE];
   char input[MAX_INPUT_SIZE];
   int cmd_size;
-  // char* current_path ="/";
+
+  int path_size=1;
+  char* current_path[50];
+  current_path[0] = strdup(" ");
+  
 
   while (1){
-
     // print_inode(&current_dir);
     // print_ext_header(&current_header);
     // print_ext(&current_extend);
-
-    printf(">>>");
+    printf("[%d]",path_size);
+    printf("[");
+    print_path( current_path,path_size );
+    printf("]");
+    
     cmd_size=0;
     fgets(input, sizeof(input), stdin);
     input[strlen(input)-1]='\0';
@@ -393,8 +428,14 @@ int main () {
       print_dir(current_extend[0].ee_start_lo);
     
     }else if (strcmp(cmd[0],"cd") == 0){
-      char* dir_name = cmd[1];
-      change_dir( dir_name, &current_dir, &current_header, current_extend);  
+      char dir_name[255];
+      strcpy(dir_name,cmd[1]);
+      int result = change_dir( dir_name, &current_dir, &current_header, current_extend); 
+        
+      if (result == 0){
+        change_pathname(current_path,&path_size, dir_name);
+      }
+       
       
     }else if(strcmp(cmd[0],"cat") == 0){
       char* file_name = cmd[1];
@@ -412,7 +453,14 @@ int main () {
         cat_file(&file,&f);
       }
       
+    }else if (strcmp(cmd[0],"testi") == 0){
+      test_inode(atoi(cmd[1]));
+    }else if(strcmp(cmd[0],"pwd") == 0){
+      // printf("current path: ");
+      print_path(current_path,path_size);
+      printf("\n");
     }
+    
   }
   
 
