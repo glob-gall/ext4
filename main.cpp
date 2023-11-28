@@ -18,6 +18,8 @@ using namespace std;
 int block_size=0;
 int inode_size=0;
 int itable_initial_addr;
+int inode_bitmap_addr;
+int block_bitmap_addr;
 fstream file;
 
 
@@ -42,10 +44,10 @@ void hexDump(fstream* file, int pos, int size){
 
   printf("\n");
 }
-void catblock(fstream* file, int pos){
-  file->seekg(pos);
+void catblock( int pos){
+  file.seekg(pos);
   char block[block_size];
-  file->read(block, block_size );
+  file.read(block, block_size );
   printf("%s\n", block);
 }
 
@@ -81,6 +83,7 @@ void print_block_desc(ext4_group_desc* GDT){
   // printf("\nInode BITMAP:%d - %d\n", GDT.bg_inode_bitmap_lo, FILE_POS);
   // printf("FILE_POS %d :%s\n", 282624, block_bitmap);
   // printFromFile(&myfile, FILE_POS, block_size);
+
   
   //INODE TABLE
   //Inode Table Size = No. of Inodes in each Group(sb.s_inodes_per_group) * inode_size
@@ -198,12 +201,12 @@ int find_by_name( int block, char* name){
   return inode_addr;
 }
 
-void change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cur_header ,ext4_extent* cur_ext){
+int change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cur_header ,ext4_extent* cur_ext){
 
   int inode_addr = find_by_name(cur_ext->ee_start_lo, inode_name);  
   if (inode_addr == -1){
     printf("DIRETÓRIO NÃO ENCONTRADO!\n");
-    return;
+    return -1;
   }
   
 
@@ -219,6 +222,7 @@ void change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cu
   memcpy(cur_ext, &cur_inode->i_block[3], sizeof(ext4_extent)*3);
   
   // print_dir(cur_ext->ee_start_lo);
+  return 0;
 }
 
 void cat_file(fstream* file, ext4_inode* inode){
@@ -237,7 +241,7 @@ void cat_file(fstream* file, ext4_inode* inode){
   memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent)*3);
   // print_ext(&f_ext);
   
-  catblock(file, f_ext.ee_start_lo * block_size);
+  catblock( f_ext.ee_start_lo * block_size);
 }
 
 void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_header* ext_header,  ext4_extent* ext){
@@ -268,6 +272,8 @@ void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_
   ext4_group_desc GDT;
   file.read((char*)(&GDT),  sizeof(ext4_group_desc) );
   // print_block_desc(&GDT);  
+  inode_bitmap_addr = GDT.bg_inode_bitmap_lo * block_size;
+  block_bitmap_addr = GDT.bg_block_bitmap_lo * block_size;
 
   itable_initial_addr=GDT.bg_inode_table_lo * block_size;
   // printf("itable = %d * %d = %d\n", itable_initial_addr, GDT.bg_inode_bitmap_lo, block_size);
@@ -288,6 +294,37 @@ void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_
   // ext4_extent ext = *(ext4_extent) &inode.i_block;
   // print_ext(&ext);
 
+}
+
+
+// void change_pathname(char* current_path, char *dir_name){
+//   if (dir_name == ".")
+//     return;
+
+//   if (dir_name == ".."){
+//     int path_len=strlen(current_path);
+//     int i=path_len;
+//     for (int i = path_len; i > 0; i--)
+//       if (current_path[i] != '/') break;
+//     current_path[i] = '\0';
+//     return;
+//   }
+  
+//   strcat(current_path, dir_name);
+//   strcat(current_path, "/");
+// }
+int test_inode(int inode){
+  //BLOCK BITMAP
+  // FILE_POS= GDT.bg_block_bitmap_lo * block_size;
+  // myfile.seekg(FILE_POS);
+  // printf("FILE_POS %d :%s\n", 282624, block_bitmap);
+  // printFromFile(&myfile, FILE_POS, block_size);
+
+  //INODE BITMAP
+  file.seekg(inode_bitmap_addr);
+  // printf("\nInode BITMAP:%d\n",inode_bitmap_addr);
+  printf("\nInode<%d>\n",inode);
+  catblock(inode_bitmap_addr);
 }
 
 int main () {
@@ -312,12 +349,14 @@ int main () {
   current_extend[0]= root_extend[0];
   current_extend[1]= root_extend[1];
   current_extend[2]= root_extend[2];
+
+  
   
   // print_super_block(&super_block);
   char* cmd[MAX_INPUT_SIZE];
   char input[MAX_INPUT_SIZE];
   int cmd_size;
-
+  // char* current_path ="/";
 
   while (1){
 
@@ -356,7 +395,7 @@ int main () {
     }else if (strcmp(cmd[0],"cd") == 0){
       char* dir_name = cmd[1];
       change_dir( dir_name, &current_dir, &current_header, current_extend);  
-    
+      
     }else if(strcmp(cmd[0],"cat") == 0){
       char* file_name = cmd[1];
       printf("procurando arquivo %s\n",file_name);
