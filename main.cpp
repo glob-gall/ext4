@@ -162,7 +162,23 @@ void print_inode(ext4_inode* inode){
   printf("block count: %d\n", inode->i_blocks_lo);
   printf("i links count: %d \n", inode->i_links_count);
   printf("flags: %X \n", inode->i_flags);
-  printf("file mode: %X \n", inode->i_mode);
+  if ((inode->i_mode & 0x1000) == 0x1000){
+    printf("file type: FIFO \n");
+  }else if ((inode->i_mode & 0x2000) == 0x2000){
+    printf("file type: Character device \n");
+  }else if ((inode->i_mode & 0x4000) == 0x4000){
+    printf("file type: Directory \n");
+  }else if ((inode->i_mode & 0x6000) == 0x6000){
+    printf("file type: Block device \n");
+  }else if ((inode->i_mode & 0x8000) == 0x8000){
+    printf("file type: Regular file \n");
+  }else if ((inode->i_mode & 0xA000) == 0xA000){
+    printf("file type: Symbolic link \n");
+  }else if ((inode->i_mode & 0xC000) == 0xC000){
+    printf("file type: Socket \n");
+  }
+  
+
   printf("===extend header===\n");
   print_ext_header(&ext_header);
   printf("======extends======\n");
@@ -232,6 +248,9 @@ int find_by_name( int block, char* name){
     // printf("(%d)[%d] %s\n",dir.inode, dir.file_type, dir.name);
     FILE_POS+=dir.rec_len;
   }
+  if (inode_addr == -1)
+    printf("%s nao encontrado\n",name);
+  
   return inode_addr;
 }
 
@@ -259,7 +278,7 @@ int change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cur
   return 0;
 }
 
-void cat_file(fstream* file, ext4_inode* inode){
+void cat_file(ext4_inode* inode){
 
   // print_inode(inode);
   ext4_extent_header ext_header;
@@ -350,6 +369,10 @@ void change_pathname(char** current_path, int* path_size,char *dir_name){
   (*path_size)++;
   
 }
+
+// void print_file_dir(ext4_inode* inode){
+  
+// }
 
 void test_inode(int inode){ //ARRUMAR
   if (inode > total_inodes){
@@ -475,10 +498,10 @@ int main () {
       
     }else if(strcmp(cmd[0],"cat") == 0){
       char* file_name = cmd[1];
-      printf("procurando arquivo %s\n",file_name);
+      // printf("procurando arquivo %s\n",file_name);
       int file_addrs = find_by_name( current_extend[0].ee_start_lo, file_name);
 
-      printf("file_addrs: %d\n\n", file_addrs);
+      // printf("file_addrs: %d\n\n", file_addrs);
       if (file_addrs != -1){
         // printf("hello.txt found, [%d]inode\n",file_addrs);
         FILE_POS = itable_initial_addr + (file_addrs * inode_size) - inode_size;
@@ -486,7 +509,7 @@ int main () {
         file.seekg(FILE_POS);
         ext4_inode f;
         file.read((char*)(&f),  sizeof(ext4_inode) );
-        cat_file(&file,&f);
+        cat_file(&f);
       }
       
     }else if (strcmp(cmd[0],"testi") == 0){
@@ -498,8 +521,21 @@ int main () {
       printf("\n");
     
     }else if (strcmp(cmd[0],"info") == 0){
-      
       print_super_block(&super_block);
+      
+    }else if (strcmp(cmd[0],"attr") == 0){
+      char* file_name = cmd[1];
+      int inode_addrs = find_by_name( current_extend[0].ee_start_lo, file_name);
+      if (inode_addrs != -1){
+        // printf("hello.txt found, [%d]inode\n",inode_addrs);
+        FILE_POS = itable_initial_addr + (inode_addrs * inode_size) - inode_size;
+        
+        file.seekg(FILE_POS);
+        ext4_inode inode;
+        file.read((char*)(&inode),  sizeof(ext4_inode) );
+        print_inode(&inode);
+      }
+
     }
     
     
