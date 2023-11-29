@@ -255,6 +255,7 @@ int find_by_name( int block, char* name){
 }
 
 int change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cur_header ,ext4_extent* cur_ext){
+  ext4_inode* new_directory = new ext4_inode;
 
   int inode_addr = find_by_name(cur_ext->ee_start_lo, inode_name);  
   if (inode_addr == -1){
@@ -264,10 +265,14 @@ int change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cur
   
 
   int FILE_POS = itable_initial_addr + (inode_addr * inode_size) - inode_size;
-  
   file.seekg(FILE_POS);
-  file.read((char*)(cur_inode),  sizeof(ext4_inode) );
+  file.read((char*)(new_directory),  sizeof(ext4_inode) );
   // print_inode(cur_inode);
+  if ((new_directory->i_mode & 0x4000) != 0x4000){
+    printf("%s nao e um diretorio.\n",inode_name);
+    return -1;
+  }
+  cur_inode = new_directory;
 
   memcpy(cur_header, cur_inode->i_block, sizeof(ext4_extent_header));
   
