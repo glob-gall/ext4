@@ -55,8 +55,8 @@ void hexDump( int pos, int size){
 void catblock( int pos){
   file.seekg(pos);
   char block[block_size];
-  file.read(block, block_size );
-  printf("%s\n", block);
+  file.read(block, block_size);
+  printf("%s", block);
 }
 
 void print_super_block(ext4_super_block* super_block){
@@ -155,7 +155,6 @@ void print_inode_permissions(unsigned short mode){
   //  8193   40755 (2)      0      0    4096  4-Oct-2023 21:28 livros
   //  8196   40755 (2)      0      0    4096  4-Oct-2023 21:31 images
   // 16385   40755 (2)      0      0    4096  4-Oct-2023 21:31 documentos
-
 
   char permisions[]="--- --- ---";
   
@@ -322,8 +321,9 @@ int change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cur
   return 0;
 }
 
-void cat_file(ext4_inode* inode){
-
+int cat_file(ext4_inode* inode){
+  if ((inode->i_mode & 0x8000) != 0x8000) return -1;
+  
   // print_inode(inode);
   ext4_extent_header ext_header;
   memcpy(&ext_header, inode->i_block, sizeof(ext4_extent_header));
@@ -334,11 +334,33 @@ void cat_file(ext4_inode* inode){
   memcpy(&f_header, inode->i_block, sizeof(ext4_extent_header));
   // print_ext_header(&f_header);
   
-  ext4_extent f_ext;
-  memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent)*3);
+  ext4_extent f_ext[3];
+  memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent)*3 );
   // print_ext(&f_ext);
+  for (int i = 0; i < f_ext[0].ee_len; i++){
+    catblock( f_ext[0].ee_start_lo * block_size + (block_size*i) );
+  }
+
+  if (ext_header.eh_entries>1){
+    for (int i = 0; i < f_ext[1].ee_len; i++){
+      catblock( f_ext[1].ee_start_lo * block_size + (block_size*i) );
+    }
+  }
+  if (ext_header.eh_entries > 2){
+    for (int i = 0; i < f_ext[1].ee_len; i++){
+      catblock( f_ext[1].ee_start_lo * block_size + (block_size*i) );
+    }
+  }
   
-  catblock( f_ext.ee_start_lo * block_size);
+
+
+
+
+
+
+
+  printf("\n");
+  return 0;
 }
 
 void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_header* ext_header,  ext4_extent* ext){
@@ -553,7 +575,9 @@ int main () {
         file.seekg(FILE_POS);
         ext4_inode f;
         file.read((char*)(&f),  sizeof(ext4_inode) );
-        cat_file(&f);
+        if (cat_file(&f) == -1)
+          printf("%s nao e um arquivo.\n", file_name);
+        
       }
       
     }else if (strcmp(cmd[0],"testi") == 0){
