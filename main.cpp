@@ -147,6 +147,43 @@ void print_ext_idx(ext4_extent_idx* _idx){
   printf("ei_unused: %d\n",_idx->ei_unused);
 }
 
+void print_inode_permissions(unsigned short mode){
+  //     2   40755 (2)      0      0    4096  4-Oct-2023 21:31 .
+  //     2   40755 (2)      0      0    4096  4-Oct-2023 21:31 ..
+  //    11   40700 (2)      0      0   16384  4-Oct-2023 21:14 lost+found
+  //    12  100644 (1)      0      0      29  4-Oct-2023 21:27 hello.txt
+  //  8193   40755 (2)      0      0    4096  4-Oct-2023 21:28 livros
+  //  8196   40755 (2)      0      0    4096  4-Oct-2023 21:31 images
+  // 16385   40755 (2)      0      0    4096  4-Oct-2023 21:31 documentos
+
+
+  char permisions[]="--- --- ---";
+  
+  if ( (mode & 0x1))
+    permisions[10] = 'x';
+  if ( (mode & 0x2))
+    permisions[9] = 'w';
+  if ( (mode & 0x4))
+    permisions[8] = 'r';
+
+  if ( (mode & 0x8) )
+    permisions[6] = 'x';
+  if ( (mode & 0x10) )
+    permisions[5] = 'w';
+  if ( (mode & 0x20) )
+    permisions[4] = 'r';
+  
+  
+  if ( (mode & 0x40))
+    permisions[2] = 'x';
+  if ( (mode & 0x80))
+    permisions[1] = 'w';
+  if ( (mode & 0x100))
+    permisions[0] = 'r';
+
+  printf("%s \n",permisions);
+}
+
 void print_inode(ext4_inode* inode){
   ext4_extent_header ext_header;
   ext4_extent ext[3];
@@ -157,11 +194,9 @@ void print_inode(ext4_inode* inode){
   //is eh_depth == 0 ? ext4_extent : ext4_extent_idx  
   // ext4_extent ext = *(ext4_extent) &inode.i_block;
 
-
-  printf("====================[INODE %d]====================\n",inode->i_uid);
-  printf("block count: %d\n", inode->i_blocks_lo);
-  printf("i links count: %d \n", inode->i_links_count);
-  printf("flags: %X \n", inode->i_flags);
+  printf("====================[%d]====================\n",inode->i_uid);
+  printf("permisoes: ");
+  print_inode_permissions(inode->i_mode);
   if ((inode->i_mode & 0x1000) == 0x1000){
     printf("file type: FIFO \n");
   }else if ((inode->i_mode & 0x2000) == 0x2000){
@@ -177,6 +212,10 @@ void print_inode(ext4_inode* inode){
   }else if ((inode->i_mode & 0xC000) == 0xC000){
     printf("file type: Socket \n");
   }
+  
+  printf("block count: %d\n", inode->i_blocks_lo);
+  printf("i links count: %d \n", inode->i_links_count);
+  printf("flags: %X \n", inode->i_flags);
   
 
   printf("===extend header===\n");
@@ -540,9 +579,7 @@ int main () {
         file.read((char*)(&inode),  sizeof(ext4_inode) );
         print_inode(&inode);
       }
-
     }
-    
     
   }
   
