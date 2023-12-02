@@ -52,11 +52,16 @@ void hexDump( int pos, int size){
 
   printf("\n");
 }
+// block: [67108864 - 67110912]
+// block: [67108864 - 67110912]
+
 void catblock( int pos){
   file.seekg(pos);
   char block[block_size];
   file.read(block, block_size);
+  // printf("block: [%d - %d]\n", pos, pos+block_size);
   printf("%s", block);
+  // printf("[endblock]\n");
 }
 
 void print_super_block(ext4_super_block* super_block){
@@ -134,17 +139,18 @@ void print_ext_header(ext4_extent_header* ext_header){
 }
 
 void print_ext(ext4_extent* ext){
-  printf("extends:\n");
+  printf("=============[ Extend ]=============\n");
   printf("ee_block: %d\n",ext->ee_block);
   printf("ee_len: %d\n",ext->ee_len);
   printf("ee_start_lo: %d\n",ext->ee_start_lo);
+  printf("ee_start_hi: %d\n",ext->ee_start_hi);
 }
-void print_ext_idx(ext4_extent_idx* _idx){
-  printf("extends:\n");
-  printf("ei_block: %d\n",_idx->ei_block);
-  printf("ei_leaf_hi: %d\n",_idx->ei_leaf_hi);
-  printf("ei_leaf_lo: %d\n",_idx->ei_leaf_lo);
-  printf("ei_unused: %d\n",_idx->ei_unused);
+void print_ext_idx(ext4_extent_idx* idx){
+  printf("===========[ Extend IDX ]===========\n");
+  printf("ei_block: %d\n",idx->ei_block);
+  printf("ei_leaf_hi: %d\n",idx->ei_leaf_hi);
+  printf("ei_leaf_lo: %d\n",idx->ei_leaf_lo);
+  printf("ei_unused: %d\n",idx->ei_unused);
 }
 
 void print_inode_permissions(unsigned short mode){
@@ -186,14 +192,20 @@ void print_inode_permissions(unsigned short mode){
 void print_inode(ext4_inode* inode){
   ext4_extent_header ext_header;
   ext4_extent ext[3];
+  ext4_extent_idx ext_idx[3];
+
 
   memcpy(&ext_header, inode->i_block, sizeof(ext4_extent_header));
+  if (ext_header.eh_depth == 0){
+    memcpy(&ext, &inode->i_block[3], sizeof(ext4_extent)*3);
+  }else{
+    memcpy(&ext_idx, &inode->i_block[3], sizeof(ext4_extent_idx)*3);
+  }
   
-  memcpy(&ext, &inode->i_block[3], sizeof(ext4_extent)*3);
   //is eh_depth == 0 ? ext4_extent : ext4_extent_idx  
   // ext4_extent ext = *(ext4_extent) &inode.i_block;
 
-  printf("====================[%d]====================\n",inode->i_uid);
+  printf("==========================[INODE]==========================\n");
   printf("permisoes: ");
   print_inode_permissions(inode->i_mode);
   if ((inode->i_mode & 0x1000) == 0x1000){
@@ -217,14 +229,23 @@ void print_inode(ext4_inode* inode){
   printf("flags: %X \n", inode->i_flags);
   
 
-  printf("===extend header===\n");
+  printf("===================#=# Extend header #=#=================== \n");
   print_ext_header(&ext_header);
-  printf("======extends======\n");
-  print_ext(&ext[0]);
-  print_ext(&ext[1]);
-  print_ext(&ext[2]);
+    if (ext_header.eh_depth == 0){
+  printf("======================#=# Extends #=#======================\n");
+      print_ext(&ext[0]);
+      print_ext(&ext[1]);
+      print_ext(&ext[2]);
+    }else{
+  printf("====================#=# Extends IDX #=#====================\n");
+      print_ext_idx(&ext_idx[0]);
+      print_ext_idx(&ext_idx[1]);
+      print_ext_idx(&ext_idx[2]);
 
-  printf("==================================================\n");
+    }
+
+
+  printf("===========================================================\n");
 
   //  unsigned short b = inode->i_mode;
 
@@ -333,40 +354,45 @@ int cat_file(ext4_inode* inode){
   ext4_extent_header f_header;
   memcpy(&f_header, inode->i_block, sizeof(ext4_extent_header));
   // print_ext_header(&f_header);
-  
-  ext4_extent f_ext[3];
-  memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent)*3 );
-  // print_ext(&f_ext);
-  for (int i = 0; i < f_ext[0].ee_len; i++){
-    catblock( f_ext[0].ee_start_lo * block_size + (block_size*i) );
-  }
 
-  if (ext_header.eh_entries>1){
-    for (int i = 0; i < f_ext[1].ee_len; i++){
-      catblock( f_ext[1].ee_start_lo * block_size + (block_size*i) );
+  ext4_extent f_ext;
+  memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent));
+
+  if (f_header.eh_depth == 0){
+    for (int i = 0; i < f_ext.ee_len; i++){
+      catblock( f_ext.ee_start_lo * block_size + (block_size*i) );
+    }
+    
+    if (ext_header.eh_entries>1){
+      memcpy(&f_ext, &inode->i_block[6], sizeof(ext4_extent));
+      for (int i = 0; i < f_ext.ee_len; i++){
+        catblock( f_ext.ee_start_lo * block_size + (block_size*i) );
+      }
+    }
+    if (ext_header.eh_entries > 2){
+      memcpy(&f_ext, &inode->i_block[9], sizeof(ext4_extent));
+      for (int i = 0; i < f_ext.ee_len; i++){
+        catblock( f_ext.ee_start_lo * block_size + (block_size*i) );
+      }
+    }
+    if (ext_header.eh_entries > 3){
+      memcpy(&f_ext, &inode->i_block[11], sizeof(ext4_extent));
+      for (int i = 0; i < f_ext.ee_len; i++){
+        catblock( f_ext.ee_start_lo * block_size + (block_size*i) );
+      }
     }
   }
-  if (ext_header.eh_entries > 2){
-    for (int i = 0; i < f_ext[1].ee_len; i++){
-      catblock( f_ext[1].ee_start_lo * block_size + (block_size*i) );
-    }
-  }
   
+  // ext4_extent_idx f_ext_idx[3];
 
-
-
-
-
-
-
-  printf("\n");
+  // printf("\n");
   return 0;
 }
 
 void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_header* ext_header,  ext4_extent* ext){
   int FILE_POS;
   //abrir o .img
-  file.open("myext4image4k.img", fstream::in | fstream::binary);
+  file.open("myext4image2k.img", fstream::in | fstream::binary);
   FILE_POS= 1024;
 
   file.seekg(FILE_POS);
