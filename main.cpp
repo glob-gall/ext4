@@ -64,6 +64,11 @@ void catblock( int pos){
   // printf("[endblock]\n");
 }
 
+void getblock(char* block, int pos){
+  file.seekg(pos);
+  file.read(block, block_size);
+}
+
 void print_super_block(ext4_super_block* super_block){
   // printf("Block Count: %d / Blocks p group: %d = %f \n", super_block.s_blocks_count_lo, super_block.s_blocks_per_group, N_G_DESC);
   printf("tamanho do super_block: %ld\n",sizeof(super_block));
@@ -494,10 +499,6 @@ void test_inode(int inode){ //ARRUMAR
     return;
   }
     printf("Inode nao disponivel\n");
-
-  
-  
-
 }
 
 void print_path(char** path,int path_size){
@@ -505,6 +506,53 @@ void print_path(char** path,int path_size){
   for (int i = 0; i < path_size; i++){
     printf("%s/", path[i]);
   }
+}
+int write_to_file(fstream* exportFile, ext4_inode* inode){
+  ext4_extent_header ext_header;
+  memcpy(&ext_header, inode->i_block, sizeof(ext4_extent_header));
+  ext4_extent cur_ext;
+  memcpy(&cur_ext, &inode->i_block[3], sizeof(ext4_extent)*3);
+
+  ext4_extent_header f_header;
+  memcpy(&f_header, inode->i_block, sizeof(ext4_extent_header));
+  // print_ext_header(&f_header);
+
+  ext4_extent f_ext;
+  memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent));
+
+  char aux[block_size];
+  if (f_header.eh_depth == 0){
+    printf("CHEGOU AQUI\n");
+    for (int i = 0; i < f_ext.ee_len; i++){
+      getblock(aux, f_ext.ee_start_lo * block_size + (block_size*i) );
+      exportFile->write( aux, block_size );
+    }
+    
+    if (ext_header.eh_entries>1){
+      memcpy(&f_ext, &inode->i_block[6], sizeof(ext4_extent));
+      for (int i = 0; i < f_ext.ee_len; i++){
+        getblock(aux, f_ext.ee_start_lo * block_size + (block_size*i) );
+        exportFile->write( aux, block_size );
+      }
+    }
+    if (ext_header.eh_entries > 2){
+      memcpy(&f_ext, &inode->i_block[9], sizeof(ext4_extent));
+      for (int i = 0; i < f_ext.ee_len; i++){
+        getblock(aux, f_ext.ee_start_lo * block_size + (block_size*i) );
+        exportFile->write( aux, block_size );
+      }
+    }
+    if (ext_header.eh_entries > 3){
+      memcpy(&f_ext, &inode->i_block[11], sizeof(ext4_extent));
+      for (int i = 0; i < f_ext.ee_len; i++){
+        getblock(aux, f_ext.ee_start_lo * block_size + (block_size*i) );
+        exportFile->write( aux, block_size );
+      }
+    }
+  }
+  // exportFile << catblock;
+
+  return 0;
 }
 
 int main () {
@@ -622,13 +670,32 @@ int main () {
       int inode_addrs = find_by_name( current_extend[0].ee_start_lo, file_name);
       if (inode_addrs != -1){
         // printf("hello.txt found, [%d]inode\n",inode_addrs);
-        FILE_POS = itable_initial_addr + (inode_addrs * inode_size) - inode_size;
-        
+        FILE_POS = itable_initial_addr + (inode_addrs * inode_size) - inode_size; 
         file.seekg(FILE_POS);
         ext4_inode inode;
         file.read((char*)(&inode),  sizeof(ext4_inode) );
         print_inode(&inode);
       }
+
+    }else if (strcmp(cmd[0],"export") == 0){
+      if (cmd_size < 3){
+        printf("informe os parametros no formato: export <source_path> <target_path>\n");
+        continue;
+      }
+      char* file_name = cmd[1];
+      char* output_name = cmd[2];
+      int inode_addrs = find_by_name( current_extend[0].ee_start_lo, file_name);
+      if (inode_addrs == -1)
+        continue;
+      
+      FILE_POS = itable_initial_addr + (inode_addrs * inode_size) - inode_size; 
+      file.seekg(FILE_POS);
+      ext4_inode inode;
+      file.read((char*)(&inode),  sizeof(ext4_inode) );
+      fstream exportFile (output_name, ios::out  | ios::binary | ios::app);
+      write_to_file(&exportFile, &inode);
+
+      exportFile.close();
     }
     
   }
