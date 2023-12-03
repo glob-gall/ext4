@@ -1,4 +1,3 @@
-
 enum inode_type {
   // 1	List of defective blocks.
   LIST_DEFECTIVE_BLOCKS = 1,

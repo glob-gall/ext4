@@ -29,19 +29,19 @@ fstream file;
 //     return (value >> position) & 0x1;
 // }
 bool getBit(char value[], int position){
-    int index = position/8;
-    int offset = position % 8;
+    int index = position/8;// pega 1 byte e divide por 8
+    int offset = position % 8;// pega o bit 0 ... 7
 
-    unsigned char byte = value[index];
-    return (byte >> offset) & 0x1;
+    unsigned char byte = value[index];//copiar o byte
+    return (byte >> offset) & 0x1;// retorna o bit
 }
 
 void printHex(unsigned char byte){
-    printf("%02X ", byte);
+    printf("%02X ", byte);// pega o byte e imprime em Hexdecimal
 }
 
 void hexDump( int pos, int size){
-  file.seekg(pos);
+  file.seekg(pos);//
   // unsigned int dump[size];
   for (int i = 0; i < size; i++) {
     char byte;
@@ -200,10 +200,12 @@ void print_inode(ext4_inode* inode){
   ext4_extent_idx ext_idx[3];
 
 
-  memcpy(&ext_header, inode->i_block, sizeof(ext4_extent_header));
+  memcpy(&ext_header, inode->i_block, sizeof(ext4_extent_header));// copia o header para inode
   if (ext_header.eh_depth == 0){
+    // se a profundidade for zero copia em extend
     memcpy(&ext, &inode->i_block[3], sizeof(ext4_extent)*3);
   }else{
+    // se a profundidade não for zero copia idx
     memcpy(&ext_idx, &inode->i_block[3], sizeof(ext4_extent_idx)*3);
   }
   
@@ -215,7 +217,7 @@ void print_inode(ext4_inode* inode){
   print_inode_permissions(inode->i_mode);
   if ((inode->i_mode & 0x1000) == 0x1000){
     printf("file type: FIFO \n");
-  }else if ((inode->i_mode & 0x2000) == 0x2000){
+  }else if ((inode ->i_mode & 0x2000) == 0x2000){
     printf("file type: Character device \n");
   }else if ((inode->i_mode & 0x4000) == 0x4000){
     printf("file type: Directory \n");
@@ -397,7 +399,7 @@ int cat_file(ext4_inode* inode){
 void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_header* ext_header,  ext4_extent* ext){
   int FILE_POS;
   //abrir o .img
-  file.open("myext4image2k.img", fstream::in | fstream::binary);
+  file.open("myext4image1k.img", fstream::in | fstream::binary);
   FILE_POS= 1024;
 
   file.seekg(FILE_POS);
@@ -423,7 +425,7 @@ void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_
   FILE_POS=block_size;
   file.seekg(FILE_POS);
   ext4_group_desc GDT;
-  file.read((char*)(&GDT),  sizeof(ext4_group_desc) );
+  file.read((char*)(&GDT),  sizeof(ext4_group_desc));
   // print_block_desc(&GDT);  
   inode_bitmap_addr = GDT.bg_inode_bitmap_lo * block_size;
   block_bitmap_addr = GDT.bg_block_bitmap_lo * block_size;
@@ -452,19 +454,18 @@ void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_
 
 void change_pathname(char** current_path, int* path_size,char *dir_name){
   if (strcmp(dir_name,".") == 0)
-    return;
+    return;// caso utilize um ponto mantem no atual
   if ((strcmp(dir_name,"..") == 0)){
     if ( (*path_size) > 1 ){
-      free(current_path[*path_size - 1]);
-      (*path_size)--;
+      free(current_path[*path_size - 1]);// desaloca a estrutura no path
+      (*path_size)--; //diminui em 1
     }
     
     return;
   }
 
-  current_path[*path_size] = strdup(dir_name);
-  (*path_size)++;
-  
+  current_path[*path_size] = strdup(dir_name);// copia o nome do diretório 
+  (*path_size)++;// incremente 1 o caminho relativo
 }
 
 // void print_file_dir(ext4_inode* inode){
@@ -556,15 +557,15 @@ int write_to_file(fstream* exportFile, ext4_inode* inode){
 }
 
 int main () {
-  int FILE_POS=0;
+  int FILE_POS=0;// posicao
 
-  ext4_super_block super_block;
-  ext4_inode root_dir;
-  ext4_extent_header root_header;
+  ext4_super_block super_block;// super block
+  ext4_inode root_dir; // indo root dir
+  ext4_extent_header root_header; //header root
   
   ext4_inode current_dir;
   ext4_extent_header current_header;
-  ext4_extent current_extend[3];
+  ext4_extent current_extend[3]; //
   
   //0 = ext, 1 = ext_idx
   // int is_extended = 0;
@@ -597,8 +598,7 @@ int main () {
     printf("[%d]",path_size);
     printf("[");
     print_path( current_path,path_size );
-    printf("]");
-    
+    printf("]");    
     cmd_size=0;
     fgets(input, sizeof(input), stdin);
     input[strlen(input)-1]='\0';
