@@ -1,4 +1,3 @@
-
 // basic file operations
 #include <iostream>
 #include <fstream>
@@ -8,7 +7,7 @@
 #include <string>
 #include <cstring>
 #include<cmath>
-
+#define Name "/images_ext4/myext4image1k.img"
 using namespace std;
 
 #define BIT 1
@@ -302,7 +301,7 @@ int find_by_name( int block, char* name){
 
   while (FILE_POS < block_last) {
     file.seekg(FILE_POS);
-    file.read((char*)(&dir),  sizeof(ext4_dir_entry_2) );
+    file.read((char*)(&dir),sizeof(ext4_dir_entry_2));
 
     // printf("[%ld]:%s   [%d]:%s\n",strlen(name), name, dir.name_len, dir.name);
 
@@ -399,7 +398,7 @@ int cat_file(ext4_inode* inode){
 void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_header* ext_header,  ext4_extent* ext){
   int FILE_POS;
   //abrir o .img
-  file.open("myext4image1k.img", fstream::in | fstream::binary);
+  file.open("myext4image2k.img", fstream::in | fstream::binary);
   FILE_POS= 1024;
 
   file.seekg(FILE_POS);
@@ -488,26 +487,41 @@ void test_inode(int inode){ //ARRUMAR
   file.seekg(inode_bitmap_addr);
   char block[block_size];
   file.read(block, block_size );
+  // printHex(block[0]);
+  // printf("\n");
   bool result = getBit(block, inode);
-    
-  // printf("\nInode<%d>\n",inode);
-  // printf("inode bitmap addr:%d\n",inode_bitmap_addr);
-  // catblock(inode_bitmap_addr);
-  // hexDump(inode_bitmap_addr, block_size);
+  // printf("%d\n",result);
   
-  if (!result){
-    printf("Inode disponivel\n");
+  if (result){
+    printf("Inode nao disponivel\n");
     return;
   }
-    printf("Inode nao disponivel\n");
+  printf("Inode disponivel\n");
 }
+void test_block(int bloco){
+  if (bloco > total_inodes){
+    printf("bloco <%d> nao existe a acontagem de blocos vai ate %d\n",bloco, total_inodes);
+    return; 
+  }
+  //Bloco Bitmap
+  file.seekg(block_bitmap_addr);
+  char block[block_size];
+  file.read(block, block_size);
 
+  bool result=getBit(block,block_size);
+  if (result){
+    printf("bloco nao disponivel\n");
+    return;
+  }
+  printf("bloco disponivel\n");
+}
 void print_path(char** path,int path_size){
 
   for (int i = 0; i < path_size; i++){
     printf("%s/", path[i]);
   }
 }
+
 int write_to_file(fstream* exportFile, ext4_inode* inode){
   ext4_extent_header ext_header;
   memcpy(&ext_header, inode->i_block, sizeof(ext4_extent_header));
@@ -656,6 +670,9 @@ int main () {
       
     }else if (strcmp(cmd[0],"testi") == 0){
       test_inode(atoi(cmd[1]));
+    
+    }else if (strcmp(cmd[0],"testb") == 0){
+      test_block(atoi(cmd[1]));
     
     }else if(strcmp(cmd[0],"pwd") == 0){
       // printf("current path: ");
