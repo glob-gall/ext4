@@ -477,20 +477,11 @@ void test_inode(int inode){ //ARRUMAR
     return; 
   }
 
-  //BLOCK BITMAP
-  // FILE_POS= GDT.bg_block_bitmap_lo * block_(*path_size);
-  // myfile.seekg(FILE_POS);
-  // printf("FILE_POS %d :%s\n", 282624, block_bitmap);
-  // printFromFile(&myfile, FILE_POS, block_size);
 
-  //INODE BITMAP
   file.seekg(inode_bitmap_addr);
   char block[block_size];
   file.read(block, block_size );
-  // printHex(block[0]);
-  // printf("\n");
-  bool result = getBit(block, inode);
-  // printf("%d\n",result);
+  bool result=getBit(&bloco[block_size-bloco],block_size);
   
   if (result){
     printf("Inode nao disponivel\n");
@@ -508,7 +499,10 @@ void test_block(int bloco){
   char block[block_size];
   file.read(block, block_size);
 
-  bool result=getBit(block,block_size);
+
+  
+  bool result=getBit(&bloco[block_size-bloco],block_size);
+  printHex(result);
   if (result){
     printf("bloco nao disponivel\n");
     return;

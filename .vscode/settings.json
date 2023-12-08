@@ -1,3 +1,4 @@
 {
-    "cmake.sourceDirectory": "/home/guilherme/Desktop/ext4"
+    "cmake.sourceDirectory": "/home/guilherme/Desktop/ext4",
+    "C_Cpp.errorSquiggles": "disabled"
 }
