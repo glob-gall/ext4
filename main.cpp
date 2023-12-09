@@ -480,9 +480,8 @@ void test_inode(int inode){ //ARRUMAR
 
   file.seekg(inode_bitmap_addr);
   char block[block_size];
-  file.read(block, block_size );
-  bool result=getBit(&bloco[block_size-bloco],block_size);
-  
+  file.read(block, block_size);
+  bool result=getBit(&block[inode/8],inode%8);
   if (result){
     printf("Inode nao disponivel\n");
     return;
@@ -500,8 +499,7 @@ void test_block(int bloco){
   file.read(block, block_size);
 
 
-  
-  bool result=getBit(&bloco[block_size-bloco],block_size);
+  bool result=getBit(&block[bloco/8],bloco%8);
   printHex(result);
   if (result){
     printf("bloco nao disponivel\n");
