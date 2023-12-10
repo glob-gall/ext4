@@ -1,4 +1,4 @@
-// basic file operations
+
 #include <iostream>
 #include <fstream>
 #include "ext4_objs.hpp"
@@ -7,10 +7,11 @@
 #include <string>
 #include <cstring>
 #include<cmath>
-#define Name "/images_ext4/myext4image1k.img"
+// #define Name "/images_ext4/myext4image1k.img"
 using namespace std;
 
 #define BIT 1
+
 #define BYTE 8 * BIT
 #define MAX_INPUT_SIZE 255
 
@@ -21,46 +22,34 @@ int inode_bitmap_addr;
 int block_bitmap_addr;
 int total_inodes;
 int total_blocks;
+char* img_name = "myext4image2k.img";
 fstream file;
 
-
-// bool getBit(unsigned short value, int position){
-//     return (value >> position) & 0x1;
-// }
 bool getBit(char value[], int position){
     int index = position/8;// pega 1 byte e divide por 8
     int offset = position % 8;// pega o bit 0 ... 7
-
-    unsigned char byte = value[index];//copiar o byte
-    return (byte >> offset) & 0x1;// retorna o bit
+    unsigned char byte = value[index];
+    return (byte >> offset) & 0x1;
 }
 
 void printHex(unsigned char byte){
     printf("%02X ", byte);// pega o byte e imprime em Hexdecimal
 }
-
-void hexDump( int pos, int size){
-  file.seekg(pos);//
-  // unsigned int dump[size];
+void hexDump( int pos, int size){//função utilizada apenas para testes durante desenvolvimento
+  file.seekg(pos);
   for (int i = 0; i < size; i++) {
     char byte;
     file.read((char*)(&byte), 1 );
-    // printf("%c ", byte);
     printHex(byte);
   }
 
   printf("\n");
 }
-// block: [67108864 - 67110912]
-// block: [67108864 - 67110912]
-
 void catblock( int pos){
   file.seekg(pos);
   char block[block_size];
   file.read(block, block_size);
-  // printf("block: [%d - %d]\n", pos, pos+block_size);
   printf("%s", block);
-  // printf("[endblock]\n");
 }
 
 void getblock(char* block, int pos){
@@ -69,11 +58,11 @@ void getblock(char* block, int pos){
 }
 
 void print_super_block(ext4_super_block* super_block){
-  // printf("Block Count: %d / Blocks p group: %d = %f \n", super_block.s_blocks_count_lo, super_block.s_blocks_per_group, N_G_DESC);
+  printf("imagem: %s\n",img_name);
   printf("tamanho do super_block: %ld\n",sizeof(super_block));
   printf("volume name: %s\n",super_block->s_volume_name);
   printf("last mount: %s\n",super_block->s_last_mounted);
-  printf("blocks size: %d\n",super_block->s_log_block_size); //ESPERADO 4096 - RECEBIDO: 2
+  printf("blocks size: %d\n",super_block->s_log_block_size);
   printf("blocks count: %d\n",super_block->s_blocks_count_lo);
   printf("free blocks: %d\n",super_block->s_free_blocks_count_lo);
   printf("first data block: %d\n",super_block->s_first_data_block);
@@ -112,25 +101,6 @@ void print_block_desc(ext4_group_desc* GDT){
   printf("bg block bitmap: %d\n", GDT->bg_block_bitmap_lo);
   printf("bg inode bitmap: %d\n", GDT->bg_inode_bitmap_lo);
   printf("bg inode table: %d\n", GDT->bg_inode_table_lo);
-
-  // printf("Block BITMAP:%d - %d\n", GDT->bg_block_bitmap_lo, FILE_POS);
-  //BLOCK BITMAP
-  // FILE_POS= GDT.bg_block_bitmap_lo * block_size;
-  // myfile.seekg(FILE_POS);
-  // printf("FILE_POS %d :%s\n", 282624, block_bitmap);
-  // printFromFile(&myfile, FILE_POS, block_size);
-
-  //INODE BITMAP
-  // FILE_POS= GDT.bg_inode_bitmap_lo * block_size;
-  // myfile.seekg(FILE_POS);
-  // printf("\nInode BITMAP:%d - %d\n", GDT.bg_inode_bitmap_lo, FILE_POS);
-  // printf("FILE_POS %d :%s\n", 282624, block_bitmap);
-  // printFromFile(&myfile, FILE_POS, block_size);
-
-  
-  //INODE TABLE
-  //Inode Table Size = No. of Inodes in each Group(sb.s_inodes_per_group) * inode_size
-  // printf("\nINODE table at %d:\n", GDT.bg_inode_table_lo);
 }
 
 
@@ -158,14 +128,6 @@ void print_ext_idx(ext4_extent_idx* idx){
 }
 
 void print_inode_permissions(unsigned short mode){
-  //     2   40755 (2)      0      0    4096  4-Oct-2023 21:31 .
-  //     2   40755 (2)      0      0    4096  4-Oct-2023 21:31 ..
-  //    11   40700 (2)      0      0   16384  4-Oct-2023 21:14 lost+found
-  //    12  100644 (1)      0      0      29  4-Oct-2023 21:27 hello.txt
-  //  8193   40755 (2)      0      0    4096  4-Oct-2023 21:28 livros
-  //  8196   40755 (2)      0      0    4096  4-Oct-2023 21:31 images
-  // 16385   40755 (2)      0      0    4096  4-Oct-2023 21:31 documentos
-
   char permisions[]="--- --- ---";
   
   if ( (mode & 0x1))
@@ -207,10 +169,6 @@ void print_inode(ext4_inode* inode){
     // se a profundidade não for zero copia idx
     memcpy(&ext_idx, &inode->i_block[3], sizeof(ext4_extent_idx)*3);
   }
-  
-  //is eh_depth == 0 ? ext4_extent : ext4_extent_idx  
-  // ext4_extent ext = *(ext4_extent) &inode.i_block;
-
   printf("==========================[INODE]==========================\n");
   printf("permisoes: ");
   print_inode_permissions(inode->i_mode);
@@ -253,15 +211,6 @@ void print_inode(ext4_inode* inode){
 
   printf("===========================================================\n");
 
-  //  unsigned short b = inode->i_mode;
-
-  //   // Print the bits from position 15 to 0
-  //   for (int i = 15; i >= 0; --i) {
-  //       std::cout << getBit(b, i);
-  //       if (i % 4 == 0) {
-  //           std::cout << ' '; // Add space every 4 bits for better readability
-  //       }
-  //   }
     printf("\n");
 }
 
@@ -271,17 +220,12 @@ void print_dir(int block){
   int block_last = block_position + block_size - 12;
   int FILE_POS = block_position;
 
-  printf("DIR %d - %d\n",FILE_POS, block_last);
   ext4_dir_entry_2 dir;
 
   while (FILE_POS < block_last) {
     file.seekg(FILE_POS);
     file.read((char*)(&dir),  sizeof(ext4_dir_entry_2) );
     printf("(%d)[%d] %s\n",dir.inode, dir.file_type, dir.name);
-    // printf("f-pos: %d\n", FILE_POS);
-    // printf("reclen: %d\n", dir.rec_len);
-    // printf("file_type: %d\n\n\n\n", dir.file_type);
-    
     FILE_POS+=dir.rec_len;
   }
 }
@@ -289,28 +233,20 @@ void print_dir(int block){
 int find_by_name( int block, char* name){
   int inode_addr= -1;
   int block_position = block * block_size;
-  // print_dir(file, block);
-  // printf("block:%d, name:%s\n", block_position, name);
-  // return inode_addr;
-
   int block_last = block_position + block_size - 12;
   int FILE_POS = block_position;
 
-  // printf("DIR %d - %d\n",FILE_POS, block_last);
   ext4_dir_entry_2 dir;
 
   while (FILE_POS < block_last) {
     file.seekg(FILE_POS);
     file.read((char*)(&dir),sizeof(ext4_dir_entry_2));
 
-    // printf("[%ld]:%s   [%d]:%s\n",strlen(name), name, dir.name_len, dir.name);
-
     if (strncmp(name, dir.name, strlen(name)) == 0){
       inode_addr = dir.inode;
       break;
     }
     
-    // printf("(%d)[%d] %s\n",dir.inode, dir.file_type, dir.name);
     FILE_POS+=dir.rec_len;
   }
   if (inode_addr == -1)
@@ -327,12 +263,10 @@ int change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cur
     printf("DIRETÓRIO NÃO ENCONTRADO!\n");
     return -1;
   }
-  
 
   int FILE_POS = itable_initial_addr + (inode_addr * inode_size) - inode_size;
   file.seekg(FILE_POS);
   file.read((char*)(new_directory),  sizeof(ext4_inode) );
-  // print_inode(cur_inode);
   if ((new_directory->i_mode & 0x4000) != 0x4000){
     printf("%s nao e um diretorio.\n",inode_name);
     return -1;
@@ -340,18 +274,13 @@ int change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cur
   cur_inode = new_directory;
 
   memcpy(cur_header, cur_inode->i_block, sizeof(ext4_extent_header));
-  
-  // ext4_extent* ext_dir ;
   memcpy(cur_ext, &cur_inode->i_block[3], sizeof(ext4_extent)*3);
-  
-  // print_dir(cur_ext->ee_start_lo);
   return 0;
 }
 
 int cat_file(ext4_inode* inode){
   if ((inode->i_mode & 0x8000) != 0x8000) return -1;
   
-  // print_inode(inode);
   ext4_extent_header ext_header;
   memcpy(&ext_header, inode->i_block, sizeof(ext4_extent_header));
   ext4_extent cur_ext;
@@ -359,7 +288,6 @@ int cat_file(ext4_inode* inode){
 
   ext4_extent_header f_header;
   memcpy(&f_header, inode->i_block, sizeof(ext4_extent_header));
-  // print_ext_header(&f_header);
 
   ext4_extent f_ext;
   memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent));
@@ -388,27 +316,19 @@ int cat_file(ext4_inode* inode){
       }
     }
   }
-  
-  // ext4_extent_idx f_ext_idx[3];
-
-  // printf("\n");
   return 0;
 }
 
 void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_header* ext_header,  ext4_extent* ext){
   int FILE_POS;
   //abrir o .img
-  file.open("myext4image2k.img", fstream::in | fstream::binary);
+  file.open(img_name, fstream::in | fstream::binary);
   FILE_POS= 1024;
 
   file.seekg(FILE_POS);
   //SUPERBLOCK
-  file.read((char*)(super_block),  sizeof(ext4_super_block) );//1024
-  // print_super_block(&super_block);
+  file.read((char*)(super_block),  sizeof(ext4_super_block) );
 
-  // Block count / Blocks per group
-  // float N_G_DESC = super_block.s_blocks_count_lo / super_block.s_blocks_per_group;
-  
   int x = 10 + super_block->s_log_block_size;
   block_size = pow(2, x);
 
@@ -417,37 +337,23 @@ void init_ext4(ext4_super_block* super_block, ext4_inode* root_dir, ext4_extent_
   total_inodes = super_block->s_inodes_count;
   total_blocks = super_block->s_blocks_count_lo;
 
-  //número de block groups
-  // int N_GDT = super_block.s_blocks_count_lo / super_block.s_blocks_per_group;
-  
-  //ext4_group_desc
   FILE_POS=block_size;
   file.seekg(FILE_POS);
   ext4_group_desc GDT;
   file.read((char*)(&GDT),  sizeof(ext4_group_desc));
-  // print_block_desc(&GDT);  
+
   inode_bitmap_addr = GDT.bg_inode_bitmap_lo * block_size;
   block_bitmap_addr = GDT.bg_block_bitmap_lo * block_size;
 
   itable_initial_addr=GDT.bg_inode_table_lo * block_size;
-  // printf("itable = %d * %d = %d\n", itable_initial_addr, GDT.bg_inode_bitmap_lo, block_size);
-
-  //inode <2>
   FILE_POS = itable_initial_addr + inode_size;
-  // printf("inode 2 = %d\n", FILE_POS);
 
+  //diretório raiz(/)
   file.seekg(FILE_POS);
   file.read((char*)(root_dir),  sizeof(ext4_inode) );
-  // print_inode(&ROOT);
 
   memcpy(ext_header, root_dir->i_block, sizeof(ext4_extent_header));
-  // print_ext_header(&ext_header);
-  
   memcpy(ext, &root_dir->i_block[3], sizeof(ext4_extent)*3);
-  //is eh_depth == 0 ? ext4_extent : ext4_extent_idx  
-  // ext4_extent ext = *(ext4_extent) &inode.i_block;
-  // print_ext(&ext);
-
 }
 
 
@@ -467,16 +373,13 @@ void change_pathname(char** current_path, int* path_size,char *dir_name){
   (*path_size)++;// incremente 1 o caminho relativo
 }
 
-// void print_file_dir(ext4_inode* inode){
-  
-// }
-
-void test_inode(int inode){ //ARRUMAR
+void test_inode(int inode){
   if (inode > total_inodes){
     printf("inode <%d> nao existe a acontagem de inodes vai ate %d\n",inode, total_inodes);
     return; 
   }
-
+  if (inode < 1) return;
+  inode= inode-1;
 
   file.seekg(inode_bitmap_addr);
   char block[block_size];
@@ -493,7 +396,9 @@ void test_block(int bloco){
     printf("bloco <%d> nao existe a acontagem de blocos vai ate %d\n",bloco, total_inodes);
     return; 
   }
-  //Bloco Bitmap
+  if (bloco < 1) return;
+  bloco= bloco-1;
+
   file.seekg(block_bitmap_addr);
   char block[block_size];
   file.read(block, block_size);
@@ -522,14 +427,12 @@ int write_to_file(fstream* exportFile, ext4_inode* inode){
 
   ext4_extent_header f_header;
   memcpy(&f_header, inode->i_block, sizeof(ext4_extent_header));
-  // print_ext_header(&f_header);
 
   ext4_extent f_ext;
   memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent));
 
   char aux[block_size];
   if (f_header.eh_depth == 0){
-    printf("CHEGOU AQUI\n");
     for (int i = 0; i < f_ext.ee_len; i++){
       getblock(aux, f_ext.ee_start_lo * block_size + (block_size*i) );
       exportFile->write( aux, block_size );
@@ -557,27 +460,27 @@ int write_to_file(fstream* exportFile, ext4_inode* inode){
       }
     }
   }
-  // exportFile << catblock;
-
   return 0;
 }
 
-int main () {
-  int FILE_POS=0;// posicao
+int main ( int argc, char *argv[] ) {
+  if (argc == 2){
+    img_name = argv[1];
+  }else{
+    printf("imagem não informada, utilizando a imagem padrão (%s). \n\n\n",img_name);
+  }
+  int FILE_POS=0;
+
 
   ext4_super_block super_block;// super block
-  ext4_inode root_dir; // indo root dir
-  ext4_extent_header root_header; //header root
+  ext4_inode root_dir;
+  ext4_extent_header root_header;
+  ext4_extent root_extend[3];
   
   ext4_inode current_dir;
   ext4_extent_header current_header;
-  ext4_extent current_extend[3]; //
-  
-  //0 = ext, 1 = ext_idx
-  // int is_extended = 0;
-  // ext4_extent_idx root_extend_idx;
+  ext4_extent current_extend[3];
 
-  ext4_extent root_extend[3];
   init_ext4( &super_block, &root_dir, &root_header, root_extend );
   current_dir = root_dir;
   current_header = root_header;
@@ -585,9 +488,6 @@ int main () {
   current_extend[1]= root_extend[1];
   current_extend[2]= root_extend[2];
 
-  
-  
-  // print_super_block(&super_block);
   char* cmd[MAX_INPUT_SIZE];
   char input[MAX_INPUT_SIZE];
   int cmd_size;
@@ -595,12 +495,8 @@ int main () {
   int path_size=1;
   char* current_path[50];
   current_path[0] = strdup(" ");
-  
 
   while (1){
-    // print_inode(&current_dir);
-    // print_ext_header(&current_header);
-    // print_ext(&current_extend);
     printf("[%d]",path_size);
     printf("[");
     print_path( current_path,path_size );
@@ -620,11 +516,6 @@ int main () {
       token = strtok(NULL, " ");
       cmd_size++;
     }
-    // for (int i = 0; i < cmd_size; i++)
-    //   printf("%s, ",cmd[i]);
-    // printf("\n");
-    // printf("cmd[0]: %s\n",cmd[0]);
-    
     
     if (strcmp(cmd[0],"clear") == 0){
       printf("\e[1;1H\e[2J");
@@ -633,6 +524,9 @@ int main () {
       print_dir(current_extend[0].ee_start_lo);
     
     }else if (strcmp(cmd[0],"cd") == 0){
+      if (cmd_size <2)
+        continue;
+      
       char dir_name[255];
       strcpy(dir_name,cmd[1]);
       int result = change_dir( dir_name, &current_dir, &current_header, current_extend); 
@@ -644,12 +538,9 @@ int main () {
       
     }else if(strcmp(cmd[0],"cat") == 0){
       char* file_name = cmd[1];
-      // printf("procurando arquivo %s\n",file_name);
       int file_addrs = find_by_name( current_extend[0].ee_start_lo, file_name);
 
-      // printf("file_addrs: %d\n\n", file_addrs);
       if (file_addrs != -1){
-        // printf("hello.txt found, [%d]inode\n",file_addrs);
         FILE_POS = itable_initial_addr + (file_addrs * inode_size) - inode_size;
         
         file.seekg(FILE_POS);
@@ -667,7 +558,6 @@ int main () {
       test_block(atoi(cmd[1]));
     
     }else if(strcmp(cmd[0],"pwd") == 0){
-      // printf("current path: ");
       print_path(current_path,path_size);
       printf("\n");
     
@@ -678,7 +568,6 @@ int main () {
       char* file_name = cmd[1];
       int inode_addrs = find_by_name( current_extend[0].ee_start_lo, file_name);
       if (inode_addrs != -1){
-        // printf("hello.txt found, [%d]inode\n",inode_addrs);
         FILE_POS = itable_initial_addr + (inode_addrs * inode_size) - inode_size; 
         file.seekg(FILE_POS);
         ext4_inode inode;
@@ -709,14 +598,6 @@ int main () {
     
   }
   
-
-  // FILE_POS = root_extend.ee_start_lo * block_size;
-  // file.seekg(FILE_POS);
-
-
-
-
-
   file.close();
   return 0;
 }
