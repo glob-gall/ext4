@@ -22,12 +22,12 @@ int inode_bitmap_addr;
 int block_bitmap_addr;
 int total_inodes;
 int total_blocks;
-char* img_name = "myext4image2k.img";
+char img_name[100] = "myext4image2k.img";
 fstream file;
 
 bool getBit(char value[], int position){
     int index = position/8;// pega 1 byte e divide por 8
-    int offset = position % 8;// pega o bit 0 ... 7
+    int offset = position % 8;// pega o bit do byte encontrado
     unsigned char byte = value[index];
     return (byte >> offset) & 0x1;
 }
@@ -104,7 +104,6 @@ void print_block_desc(ext4_group_desc* GDT){
 }
 
 
-
 void print_ext_header(ext4_extent_header* ext_header){
   printf("ext header\n");
   printf("depth: %d \n",ext_header->eh_depth);
@@ -119,6 +118,7 @@ void print_ext(ext4_extent* ext){
   printf("ee_start_lo: %d\n",ext->ee_start_lo);
   printf("ee_start_hi: %d\n",ext->ee_start_hi);
 }
+
 void print_ext_idx(ext4_extent_idx* idx){
   printf("===========[ Extend IDX ]===========\n");
   printf("ei_block: %d\n",idx->ei_block);
@@ -215,14 +215,15 @@ void print_inode(ext4_inode* inode){
 }
 
 void print_dir(int block){
-  int block_position = block * block_size;
-  
+  //numero do bloco para posição real no arquivo .img 
+  int block_position = block * block_size; 
+
   int block_last = block_position + block_size - 12;
   int FILE_POS = block_position;
 
-  ext4_dir_entry_2 dir;
+  ext4_dir_entry_2 dir; //estrutura para descrever os arquivos no diretório
 
-  while (FILE_POS < block_last) {
+  while (FILE_POS < block_last) { //imprime o conteudo enquanto não chegar ao final do bloco
     file.seekg(FILE_POS);
     file.read((char*)(&dir),  sizeof(ext4_dir_entry_2) );
     printf("(%d)[%d] %s\n",dir.inode, dir.file_type, dir.name);
@@ -232,13 +233,13 @@ void print_dir(int block){
 
 int find_by_name( int block, char* name){
   int inode_addr= -1;
-  int block_position = block * block_size;
+  int block_position = block * block_size; //posição real no arquivo .img
   int block_last = block_position + block_size - 12;
   int FILE_POS = block_position;
 
-  ext4_dir_entry_2 dir;
+  ext4_dir_entry_2 dir; //estrutura para descrever os arquivos no diretório
 
-  while (FILE_POS < block_last) {
+  while (FILE_POS < block_last) { // intera ate encontrar o arquivo com mesmo nome ou chegar ao final do bloco
     file.seekg(FILE_POS);
     file.read((char*)(&dir),sizeof(ext4_dir_entry_2));
 
@@ -249,7 +250,7 @@ int find_by_name( int block, char* name){
     
     FILE_POS+=dir.rec_len;
   }
-  if (inode_addr == -1)
+  if (inode_addr == -1) //atribui -1 para indicar que nao foi encontrado
     printf("%s nao encontrado\n",name);
   
   return inode_addr;
@@ -264,7 +265,7 @@ int change_dir( char* inode_name, ext4_inode* cur_inode, ext4_extent_header* cur
     return -1;
   }
 
-  int FILE_POS = itable_initial_addr + (inode_addr * inode_size) - inode_size;
+  int FILE_POS = itable_initial_addr + (inode_addr * inode_size) - inode_size; //posicao do byte no arquivo .img
   file.seekg(FILE_POS);
   file.read((char*)(new_directory),  sizeof(ext4_inode) );
   if ((new_directory->i_mode & 0x4000) != 0x4000){
@@ -391,6 +392,7 @@ void test_inode(int inode){
   }
   printf("Inode disponivel\n");
 }
+
 void test_block(int bloco){
   if (bloco > total_inodes){
     printf("bloco <%d> nao existe a acontagem de blocos vai ate %d\n",bloco, total_inodes);
@@ -405,7 +407,6 @@ void test_block(int bloco){
 
 
   bool result=getBit(&block[bloco/8],bloco%8);
-  printHex(result);
   if (result){
     printf("bloco nao disponivel\n");
     return;
@@ -465,7 +466,7 @@ int write_to_file(fstream* exportFile, ext4_inode* inode){
 
 int main ( int argc, char *argv[] ) {
   if (argc == 2){
-    img_name = argv[1];
+    strcpy(img_name,argv[1]);
   }else{
     printf("imagem não informada, utilizando a imagem padrão (%s). \n\n\n",img_name);
   }
@@ -481,6 +482,7 @@ int main ( int argc, char *argv[] ) {
   ext4_extent_header current_header;
   ext4_extent current_extend[3];
 
+  //inicializa o super bloco e o diretório raiz
   init_ext4( &super_block, &root_dir, &root_header, root_extend );
   current_dir = root_dir;
   current_header = root_header;
@@ -492,15 +494,16 @@ int main ( int argc, char *argv[] ) {
   char input[MAX_INPUT_SIZE];
   int cmd_size;
 
+  //variaveis para controlar o path de diretório atual.
   int path_size=1;
   char* current_path[50];
   current_path[0] = strdup(" ");
 
   while (1){
-    printf("[%d]",path_size);
+    printf("[%d]",path_size); //imprime o diretório atual
     printf("[");
     print_path( current_path,path_size );
-    printf("]");    
+    printf("]");    //
     cmd_size=0;
     fgets(input, sizeof(input), stdin);
     input[strlen(input)-1]='\0';
@@ -509,7 +512,7 @@ int main ( int argc, char *argv[] ) {
     if (input[strlen(input)-1] == '\n'){
       input[strlen(input)-1] = '\0';
     }
-    char * token = strtok(input, " ");
+    char * token = strtok(input, " "); //separa a entrada por palavras
 
     while( token != NULL ) {
       cmd[cmd_size] = token;
@@ -518,14 +521,14 @@ int main ( int argc, char *argv[] ) {
     }
     
     if (strcmp(cmd[0],"clear") == 0){
-      printf("\e[1;1H\e[2J");
+      printf("\e[1;1H\e[2J"); //limpa o terminal
     
     }else if (strcmp(cmd[0],"ls") == 0){
       print_dir(current_extend[0].ee_start_lo);
     
     }else if (strcmp(cmd[0],"cd") == 0){
       if (cmd_size <2)
-        continue;
+        continue; //se nao tiver um diretório ignora o comando
       
       char dir_name[255];
       strcpy(dir_name,cmd[1]);
@@ -595,7 +598,6 @@ int main ( int argc, char *argv[] ) {
 
       exportFile.close();
     }
-    
   }
   
   file.close();
