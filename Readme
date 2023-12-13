@@ -1,13 +1,19 @@
-Implementação Do Sistema Arquivos Ext04
+    Implementação Do Sistema Arquivos Ext04
+
+    O projeto consiste na implementação de estruturas de dados e operações destinadas 
+    à manipulação da imagem de um sistema de arquivos EXT4, 
+    contida em um arquivo no formato .img. 
+    As operações são projetadas para serem acionadas
+    a partir de um prompt de comando (shell), 
+    proporcionando uma interface de usuário intuitiva e interativa.
 
    make-> compilar
    make clean-> remove o executável
-   ./main-> roda o programa
+   ./main-> rodar o programa
 
    Guilherme Almeida Lopes a2458802 
    Luis Felipe Galleguillos Campos a2304562
    
-
     pwd:
         Descrição: imprime o diretório atual 
     info:

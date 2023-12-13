@@ -10,6 +10,18 @@
 #include<cmath>
 // #define Name "/images_ext4/myext4image1k.img"
 using namespace std;
+//Autores: Guilherme Almeida Lopes RA:2458802,Luis Felipe Galleguillos Campos a2304562
+// Data de criação: 27.11.2023
+// Data de atualização: 13.12.2023
+
+/*
+O projeto consiste na implementação de estruturas de dados e operações destinadas 
+à manipulação da imagem de um sistema de arquivos EXT4, 
+contida em um arquivo no formato .img. 
+As operações são projetadas para serem acionadas
+a partir de um prompt de comando (shell), 
+proporcionando uma interface de usuário intuitiva e interativa.
+*/
 
 #define BIT 1
 
