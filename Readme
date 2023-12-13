@@ -1,7 +1,12 @@
 Implementação Do Sistema Arquivos Ext04
 
+   make-> compilar
+   make clean-> remove o executável
+   ./main-> roda o programa
+
    Guilherme Almeida Lopes a2458802 
    Luis Felipe Galleguillos Campos a2304562
+   
 
     pwd:
         Descrição: imprime o diretório atual 

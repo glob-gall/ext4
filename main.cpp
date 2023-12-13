@@ -1,4 +1,5 @@
 
+
 #include <iostream>
 #include <fstream>
 #include "ext4_objs.hpp"
@@ -64,10 +65,11 @@ void getblock(char* block, int pos){ //le da posição pos e salva na variavel b
 }
 
 void print_super_block(ext4_super_block* super_block){
+  //imprime o super bloco
   printf("imagem: %s\n",img_name);
   printf("volume name: %s\n",super_block->s_volume_name);
   printf("last mount: %s\n",super_block->s_last_mounted);
-  printf("blocks size: %d\n",super_block->s_log_block_size);
+  printf("blocks size: %d\n",(int)pow(2,10+super_block->s_log_block_size));
   printf("blocks count: %d\n",super_block->s_blocks_count_lo);
   printf("free blocks: %d\n",super_block->s_free_blocks_count_lo);
   printf("first data block: %d\n",super_block->s_first_data_block);
@@ -103,12 +105,14 @@ void print_super_block(ext4_super_block* super_block){
 }
 
 void print_block_desc(ext4_group_desc* GDT){
+  // imprime o descritor de grupos
   printf("bg block bitmap: %d\n", GDT->bg_block_bitmap_lo);
   printf("bg inode bitmap: %d\n", GDT->bg_inode_bitmap_lo);
   printf("bg inode table: %d\n", GDT->bg_inode_table_lo);
 }
 
 void print_ext_header(ext4_extent_header* ext_header){
+  //imprime ext header
   printf("ext header\n");
   printf("depth: %d \n",ext_header->eh_depth);
   printf("entries: %d \n",ext_header->eh_entries);
@@ -116,6 +120,7 @@ void print_ext_header(ext4_extent_header* ext_header){
 }
 
 void print_ext(ext4_extent* ext){
+  //imprime o ext
   printf("=============[ Extend ]=============\n");
   printf("ee_block: %d\n",ext->ee_block);
   printf("ee_len: %d\n",ext->ee_len);
@@ -124,6 +129,7 @@ void print_ext(ext4_extent* ext){
 }
 
 void print_ext_idx(ext4_extent_idx* idx){
+  //imprime o ext idx
   printf("===========[ Extend IDX ]===========\n");
   printf("ei_block: %d\n",idx->ei_block);
   printf("ei_leaf_hi: %d\n",idx->ei_leaf_hi);
@@ -161,6 +167,7 @@ void print_inode_permissions(unsigned short mode){
 }
 
 void print_inode(ext4_inode* inode){
+  //imprime o inode
   ext4_extent_header ext_header;
   ext4_extent ext[3];
   ext4_extent_idx ext_idx[3];
@@ -193,7 +200,7 @@ void print_inode(ext4_inode* inode){
     printf("file type: Socket \n");
   }
   
-  printf("block count: %d\n", inode->i_blocks_lo);
+  printf("file size: %d\n", inode->i_blocks_lo*block_size);
   printf("i links count: %d \n", inode->i_links_count);
   printf("flags: %X \n", inode->i_flags);
   
