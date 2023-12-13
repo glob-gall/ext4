@@ -1,0 +1,36 @@
+Implementação Do Sistema Arquivos Ext04
+
+   Guilherme Almeida Lopes a2458802 
+   Luis Felipe Galleguillos Campos a2304562
+
+    pwd:
+        Descrição: imprime o diretório atual 
+    info:
+        Descrição: Exibe informações da imagem e do sistema de arquivos.
+
+    cat <file>:
+        Descrição: Exibe o conteúdo de um arquivo no formato texto.
+        Exemplo: cat arquivo.txt
+
+    attr <file | dir>:
+        Descrição: Exibe os atributos de um arquivo (file) ou diretório (dir).
+        Exemplo: attr arquivo.txt ou attr /caminho/do/diretorio
+
+    cd <path>:
+        Descrição: Altera o diretório corrente para o definido como path.
+        Exemplo: cd /caminho/do/diretorio
+
+    ls:
+        Descrição: Lista os arquivos e diretórios do diretório corrente.
+
+    testi <inode_number>:
+        Descrição: Verifica se um inode está livre ou ocupado.
+        Exemplo: testi 123
+
+    testb <block_number>:
+        Descrição: Verifica se um bloco está livre ou ocupado.
+        Exemplo: testb 456
+
+    export <source_path> <target_path>:
+        Descrição: Copia arquivo da imagem (source_path) para destino (target_path) no sistema operacional da máquina.
+        Exemplo: export /caminho/da/imagem/arquivo.txt /caminho/destino/arquivo.txt

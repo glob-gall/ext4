@@ -65,7 +65,6 @@ void getblock(char* block, int pos){ //le da posição pos e salva na variavel b
 
 void print_super_block(ext4_super_block* super_block){
   printf("imagem: %s\n",img_name);
-  printf("tamanho do super_block: %ld\n",sizeof(super_block));
   printf("volume name: %s\n",super_block->s_volume_name);
   printf("last mount: %s\n",super_block->s_last_mounted);
   printf("blocks size: %d\n",super_block->s_log_block_size);
