@@ -34,7 +34,6 @@ bool getBit(char value[], int position){
     return (byte >> offset) & 0x1;
 }
 
-
 void printHex(unsigned char byte){
     printf("%02X ", byte);// pega o byte e imprime em Hexdecimal
 }
@@ -124,7 +123,7 @@ void print_ext(ext4_extent* ext){
   printf("ee_start_hi: %d\n",ext->ee_start_hi);
 }
 
-void print_ext_idx(ext4_extent_idx* idx){
+void  print_ext_idx(ext4_extent_idx* idx){
   printf("===========[ Extend IDX ]===========\n");
   printf("ei_block: %d\n",idx->ei_block);
   printf("ei_leaf_hi: %d\n",idx->ei_leaf_hi);
@@ -438,47 +437,64 @@ void print_path(char** path,int path_size){
   }
 }
 
+void export_extend(fstream* exportFile, ext4_extent extend){
+  char aux[block_size];//buffer temporario para armazenar os blocos
+
+  for (int i = 0; i < extend.ee_len; i++){
+    getblock(aux, extend.ee_start_lo * block_size + (block_size*i) );
+    exportFile->write( aux, block_size );
+  }
+}
+
+void export_recursivo(int depth, int block, fstream* exportFile){
+  int initial_pos = block*block_size;
+  int pos = initial_pos;
+
+  if (depth > 1){
+    ext4_extent_idx node;
+    while (pos < initial_pos + block_size - sizeof(ext4_extent_idx)){
+      file.seekg(pos);
+      file.read((char*)(&node),  sizeof(ext4_extent_idx) );
+      if (node.ei_leaf_lo == 0) break;
+
+      export_recursivo(depth-1,node.ei_leaf_lo, exportFile);
+      pos+=sizeof(ext4_extent_idx);
+    }
+    return;
+  }
+  
+  ext4_extent leaf;
+  while (pos < initial_pos + block_size - sizeof(ext4_extent)){
+    file.seekg(pos);
+    file.read((char*)(&leaf),  sizeof(ext4_extent) );
+    if (leaf.ee_len==0) break;
+    
+    export_extend(exportFile, leaf);
+    pos+=sizeof(ext4_extent);
+  }
+}
+
 //exporta o inode para um arquivo export File na maquina real
 int write_to_file(fstream* exportFile, ext4_inode* inode){
   ext4_extent_header ext_header;
   memcpy(&ext_header, inode->i_block, sizeof(ext4_extent_header));
-  ext4_extent cur_ext;
-  memcpy(&cur_ext, &inode->i_block[3], sizeof(ext4_extent)*3);
 
-  ext4_extent_header f_header;
-  memcpy(&f_header, inode->i_block, sizeof(ext4_extent_header));
-
-  ext4_extent f_ext;
-  memcpy(&f_ext, &inode->i_block[3], sizeof(ext4_extent));
-
-  char aux[block_size];//buffer temporario para armazenar os blocos
-
-  if (f_header.eh_depth == 0){ //verifica se utiliza extend
-    for (int i = 0; i < f_ext.ee_len; i++){
-      getblock(aux, f_ext.ee_start_lo * block_size + (block_size*i) );
-      exportFile->write( aux, block_size );
+  if (ext_header.eh_depth == 0){ //utiliza extend
+    ext4_extent f_ext;
+    for (int i = 0; i < ext_header.eh_entries; i++){
+      memcpy(&f_ext, &inode->i_block[3+(3*i)], sizeof(ext4_extent));
+      export_extend(exportFile, f_ext);
+      // print_ext_idx(&f_ext_idx); 
     }
-    
-    if (ext_header.eh_entries>1){
-      memcpy(&f_ext, &inode->i_block[6], sizeof(ext4_extent));
-      for (int i = 0; i < f_ext.ee_len; i++){
-        getblock(aux, f_ext.ee_start_lo * block_size + (block_size*i) );
-        exportFile->write( aux, block_size );
-      }
-    }
-    if (ext_header.eh_entries > 2){
-      memcpy(&f_ext, &inode->i_block[9], sizeof(ext4_extent));
-      for (int i = 0; i < f_ext.ee_len; i++){
-        getblock(aux, f_ext.ee_start_lo * block_size + (block_size*i) );
-        exportFile->write( aux, block_size );
-      }
-    }
-    if (ext_header.eh_entries > 3){
-      memcpy(&f_ext, &inode->i_block[11], sizeof(ext4_extent));
-      for (int i = 0; i < f_ext.ee_len; i++){
-        getblock(aux, f_ext.ee_start_lo * block_size + (block_size*i) );
-        exportFile->write( aux, block_size );
-      }
+
+  }else{ //utiliza extend_idx
+    ext4_extent_idx f_ext_idx;
+    print_ext_header(&ext_header);
+
+    for (int i = 0; i < ext_header.eh_entries; i++){
+      memcpy(&f_ext_idx, &inode->i_block[3+(3*i)], sizeof(ext4_extent_idx));
+      export_recursivo(ext_header.eh_depth, f_ext_idx.ei_leaf_lo, exportFile);
+      print_ext_idx(&f_ext_idx); 
     }
   }
   return 0;
