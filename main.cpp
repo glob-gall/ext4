@@ -449,26 +449,27 @@ void export_extend(fstream* exportFile, ext4_extent extend){
 void export_recursivo(int depth, int block, fstream* exportFile){
   int initial_pos = block*block_size;
   int pos = initial_pos;
-
+  int ext_size = sizeof(ext4_extent_idx);
   if (depth > 1){
     ext4_extent_idx node;
-    while (pos < initial_pos + block_size - sizeof(ext4_extent_idx)){
+    while (pos < initial_pos + block_size - ext_size){
       file.seekg(pos);
       file.read((char*)(&node),  sizeof(ext4_extent_idx) );
       if (node.ei_leaf_lo == 0) break;
 
       export_recursivo(depth-1,node.ei_leaf_lo, exportFile);
-      pos+=sizeof(ext4_extent_idx);
+      pos+=ext_size;
     }
     return;
   }
   
   ext4_extent leaf;
-  while (pos < initial_pos + block_size - sizeof(ext4_extent)){
+  while (pos < initial_pos + block_size - ext_size){
     file.seekg(pos);
     file.read((char*)(&leaf),  sizeof(ext4_extent) );
     if (leaf.ee_len==0) break;
     
+    print_ext(&leaf);
     export_extend(exportFile, leaf);
     pos+=sizeof(ext4_extent);
   }
@@ -484,17 +485,13 @@ int write_to_file(fstream* exportFile, ext4_inode* inode){
     for (int i = 0; i < ext_header.eh_entries; i++){
       memcpy(&f_ext, &inode->i_block[3+(3*i)], sizeof(ext4_extent));
       export_extend(exportFile, f_ext);
-      // print_ext_idx(&f_ext_idx); 
     }
-
   }else{ //utiliza extend_idx
     ext4_extent_idx f_ext_idx;
-    print_ext_header(&ext_header);
 
     for (int i = 0; i < ext_header.eh_entries; i++){
       memcpy(&f_ext_idx, &inode->i_block[3+(3*i)], sizeof(ext4_extent_idx));
-      export_recursivo(ext_header.eh_depth, f_ext_idx.ei_leaf_lo, exportFile);
-      print_ext_idx(&f_ext_idx); 
+      export_recursivo(ext_header.eh_depth, f_ext_idx.ei_leaf_lo, exportFile); 
     }
   }
   return 0;
